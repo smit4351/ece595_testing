@@ -1,0 +1,151 @@
+// Hardware Scanner for Raspberry Pi 4
+// Compile: gcc -o scanner hardware_scanner.c
+// Run: sudo ./scanner
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/mman.h>
+#include <time.h>
+
+#define BCM2711_PERI_BASE 0xFE000000
+#define DMA_BASE_OFFSET   0x007000
+#define PAGE_SIZE         4096
+
+void* map_peripheral(off_t base_addr, size_t size) {
+    int mem_fd = open("/dev/mem", O_RDWR | O_SYNC);
+    if (mem_fd < 0) {
+        perror("Failed to open /dev/mem");
+        return NULL;
+    }
+    
+    void* map = mmap(NULL, size, PROT_READ | PROT_WRITE, 
+                     MAP_SHARED, mem_fd, base_addr);
+    
+    close(mem_fd);
+    
+    if (map == MAP_FAILED) {
+        perror("mmap failed");
+        return NULL;
+    }
+    
+    return map;
+}
+
+void scan_memory_region(const char* name, off_t start, size_t size) {
+    printf("\n[*] Scanning %s: 0x%lx - 0x%lx\n", name, start, start + size);
+    
+    void* mem = map_peripheral(start, size);
+    if (!mem) {
+        printf("[!] Failed to map region\n");
+        return;
+    }
+    
+    // Look for patterns indicating OP-TEE structures
+    uint32_t* ptr = (uint32_t*)mem;
+    size_t words = size / sizeof(uint32_t);
+    
+    for (size_t i = 0; i < words; i++) {
+        // Look for OP-TEE magic numbers or known patterns
+        if (ptr[i] == 0x4554504F) {  // "OPTE" in hex
+            printf("[+] Found potential OP-TEE structure at: 0x%lx\n", 
+                   start + (i * sizeof(uint32_t)));
+        }
+    }
+    
+    munmap(mem, size);
+}
+
+void scan_ta_verification_ops() {
+    printf("\n[*] Scanning for TA verification operations...\n");
+    
+    // These are the typical function pointers used for TA verification
+    // We need to find these in memory
+    const char* target_funcs[] = {
+        "verify_ta_signature",
+        "check_ta_permissions", 
+        "validate_ta_header",
+        "authenticate_ta"
+    };
+    
+    printf("[*] Target functions to locate:\n");
+    for (int i = 0; i < 4; i++) {
+        printf("    [%d] %s\n", i, target_funcs[i]);
+    }
+    
+    printf("\n[!] Manual analysis required:\n");
+    printf("    1. Use 'strings' on OP-TEE binary\n");
+    printf("    2. Use objdump to find function addresses\n");
+    printf("    3. Search for function pointer tables\n");
+    printf("\n    Run: objdump -d /path/to/tee.elf | grep -A5 'verify'\n");
+}
+
+void scan_dma_controller() {
+    printf("\n[*] Scanning DMA controller...\n");
+    
+    off_t dma_base = BCM2711_PERI_BASE + DMA_BASE_OFFSET;
+    void* dma = map_peripheral(dma_base, PAGE_SIZE);
+    
+    if (!dma) {
+        printf("[!] Failed to map DMA controller\n");
+        return;
+    }
+    
+    volatile uint32_t* dma_regs = (volatile uint32_t*)dma;
+    
+    printf("[+] DMA Controller Base: 0x%lx\n", dma_base);
+    printf("[+] DMA Channel 0 Status: 0x%08x\n", dma_regs[0]);
+    printf("[+] DMA Channel 0 Control: 0x%08x\n", dma_regs[1]);
+    
+    // Check which DMA channels are available
+    for (int ch = 0; ch < 15; ch++) {
+        uint32_t status = dma_regs[ch * 0x100 / 4];
+        if (status != 0xFFFFFFFF && status != 0) {
+            printf("[+] DMA Channel %d appears active: 0x%08x\n", ch, status);
+        }
+    }
+    
+    munmap(dma, PAGE_SIZE);
+}
+
+void generate_config_file() {
+    printf("\n[*] Generating configuration file...\n");
+    
+    FILE* f = fopen("discovered_addresses.json", "w");
+    if (!f) {
+        perror("Failed to create config file");
+        return;
+    }
+    
+    fprintf(f, "{\n");
+    fprintf(f, "  \"dma_base\": \"0x%x\",\n", BCM2711_PERI_BASE + DMA_BASE_OFFSET);
+    fprintf(f, "  \"peripheral_base\": \"0x%x\",\n", BCM2711_PERI_BASE);
+    fprintf(f, "  \"ta_verification_ops\": [],\n");
+    fprintf(f, "  \"timestamp\": \"%ld\"\n", time(NULL));
+    fprintf(f, "}\n");
+    
+    fclose(f);
+    printf("[+] Config saved to: discovered_addresses.json\n");
+}
+
+int main() {
+    printf("=== ARM TrustZone Hardware Scanner ===\n");
+    printf("[*] Raspberry Pi 4 Memory Layout Discovery\n\n");
+    
+    // Scan key memory regions
+    scan_memory_region("DMA Controller", 
+                       BCM2711_PERI_BASE + DMA_BASE_OFFSET, 
+                       PAGE_SIZE);
+    
+    scan_ta_verification_ops();
+    scan_dma_controller();
+    generate_config_file();
+    
+    printf("\n[*] Scanning complete!\n");
+    printf("[*] Review 'discovered_addresses.json' and update CONFIG\n");
+    
+    return 0;
+}
