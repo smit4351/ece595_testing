@@ -1,0 +1,98 @@
+================================================================================
+READY TO PUSH TO GITHUB
+================================================================================
+
+Your partner needs ONLY these files (all cleaned and ready):
+
+CORE FILES FOR PARTNER:
+  ✓ BUILD_ON_PI.sh                        - Run this first on Pi to build .ko files
+  ✓ README.md                             - Quick start guide
+
+ATTACK MODULES (kernel_modules/):
+  ✓ dma_attack.c                          - DMA memory access attack
+  ✓ smc_fuzzer.c                          - SMC interface fuzzing
+  ✓ cache_timing_attack.c                 - Cache side-channel attack
+  ✓ peripheral_isolation_test.c           - Peripheral isolation testing
+  ✓ attack_template.c                     - Template for new attacks
+  ✓ Makefile                              - Build system
+
+AUTOMATION SUITE (pi_attack_runner/):
+  ✓ run_attacks.sh                        - Main orchestrator
+  ✓ execute_attack.sh                     - Single attack runner
+  ✓ collect_results.sh                    - Results collection
+  ✓ partner_setup.sh                      - First-time Pi setup
+  ✓ config.sh                             - Configuration
+  ✓ quick_test.sh                         - Verify setup
+  ✓ README.md                             - Quick reference
+  ✓ PARTNER_GUIDE.md                      - Detailed instructions
+
+DOCUMENTATION:
+  ✓ RASPBERRY_PI_DEPLOYMENT.md            - Full deployment guide
+  ✓ ATTACK_SUMMARY.md                     - Attack descriptions & research alignment
+
+================================================================================
+REMOVED FILES (not needed by partner):
+================================================================================
+
+  ✗ All macOS/Docker files (docker-compose.yml, dockerfile, etc.)
+  ✗ All build scripts (scripts/ directory)
+  ✗ Research files (project.tex, proposal.tex)
+  ✗ Python development tools (ece595.py, trustzone_master.py)
+  ✗ Templates (dma_exploit.c.template, test_*.template)
+  ✗ macOS helpers (send_to_pi.sh, verify_macos_setup.sh)
+
+================================================================================
+TO PUSH TO GITHUB:
+================================================================================
+
+git commit -m "Partner deployment: cleaned repo with 4 attacks + automation"
+git push origin main
+
+================================================================================
+PARTNER WORKFLOW (after git clone):
+================================================================================
+
+1. Clone repo on Raspberry Pi:
+   git clone https://github.com/smit4351/ece595_testing.git
+   cd ece595_testing
+
+2. Build kernel modules:
+   bash BUILD_ON_PI.sh
+
+3. Setup automation:
+   cd pi_attack_runner
+   sudo bash partner_setup.sh
+
+4. Run attacks:
+   sudo bash run_attacks.sh --local ~/ece595_testing/kernel_modules
+
+5. Collect results:
+   sudo bash collect_results.sh --output ~/attack_results
+
+================================================================================
+WHAT HAPPENS ON PI:
+================================================================================
+
+BUILD_ON_PI.sh will:
+  1. Install build-essential, linux-headers
+  2. Compile all 4 .ko modules natively
+  3. Create: dma_attack.ko, smc_fuzzer.ko, cache_timing_attack.ko, 
+            peripheral_isolation_test.ko
+
+run_attacks.sh will:
+  1. Load each .ko module
+  2. Execute attack via /proc interface
+  3. Monitor for crashes
+  4. Collect dmesg logs
+  5. Generate summary report
+
+================================================================================
+TOTAL FILES: 18 files (core project only)
+REPO SIZE: ~100KB (source code only, no binaries)
+================================================================================
+
+✓ Ready to push!
+✓ Partner needs zero macOS setup
+✓ Everything builds and runs natively on Pi
+✓ All attacks aligned with research goals (see ATTACK_SUMMARY.md)
+

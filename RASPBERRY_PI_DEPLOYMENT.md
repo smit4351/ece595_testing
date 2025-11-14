@@ -1,82 +1,130 @@
-# Raspberry Pi 4 Deployment Guide
-## ECE595 TrustZone Research Project
+# Deploying to Raspberry Pi 4
 
-This guide provides **two deployment paths** for running the TrustZone research tools on Raspberry Pi 4.
+This is the complete walkthrough for getting the attack framework up and running on your Raspberry Pi.
+
+## The Quick Version
+
+If you just want to get started:
+
+```bash
+# 1. Clone the repo on your Pi
+git clone https://github.com/smit4351/ece595_testing.git
+cd ece595_testing
+
+# 2. Build the modules
+bash BUILD_ON_PI.sh
+
+# 3. Run everything
+cd pi_attack_runner
+sudo bash run_attacks.sh --local ~/ece595_testing/kernel_modules
+```
+
+The script handles all the setup automatically. Results appear in `/tmp/attack_results/`.
 
 ---
 
-## Quick Reference
+## The Detailed Version
 
-| Method | Time | Complexity | Use Case |
-|--------|------|------------|----------|
-| **Method 1: Standard RPi OS** | 10 minutes | Easy | Testing kernel modules quickly |
-| **Method 2: Custom OP-TEE** | 3-4 hours | Advanced | Full TrustZone control + modules |
+### What You'll Need
+
+- **Raspberry Pi 4** (4GB RAM recommended, though 2GB works)
+- **Raspberry Pi OS 64-bit** installed on an SD card
+- **OP-TEE 3.20.0** (or compatible version—usually comes pre-installed)
+- **Internet connection** on the Pi (for installing build tools, first time only)
+- **SSH access** from your computer to the Pi
+
+### Why Each Tool?
+
+- **SSH** - so you don't have to attach a keyboard/monitor to the Pi
+- **Internet** - the first time, `BUILD_ON_PI.sh` installs `build-essential` and `linux-headers`
+- **4GB RAM** - building kernel modules is memory-intensive; 2GB will work but be slow
+
+### Before You Start
+
+Verify OP-TEE is running on your Pi:
+
+```bash
+ssh pi@raspberrypi.local
+
+# Check that OP-TEE is active
+ps aux | grep optee
+# You should see: /usr/bin/tee-supplicant
+
+# Or check the device
+ls -la /dev/tee* 
+# Should show /dev/tee0 and /dev/teepriv0
+```
+
+If you don't see these, your Pi might not have OP-TEE installed. Contact your instructor.
 
 ---
 
-## Method 1: Deploy to Standard Raspberry Pi OS (RECOMMENDED FOR TESTING)
+## Step 1: Get the Code
 
-### Overview
-This is the **fastest path** to run your attack tools. Uses standard Raspberry Pi OS with your custom kernel modules.
-
-### Prerequisites
-- Raspberry Pi 4 (2GB+ RAM recommended)
-- SD card with Raspberry Pi OS (64-bit) installed
-- SSH or serial console access to Pi
-- Network connection between macOS and Pi
-
-### Step 1: Prepare Raspberry Pi OS
-
-On your Raspberry Pi:
+### Option A: Clone from GitHub (Recommended)
 
 ```bash
-# Update system
-sudo apt update && sudo apt upgrade -y
-
-# Install kernel headers (needed to load modules)
-sudo apt install -y raspberrypi-kernel-headers
-
-# Verify kernel version
-uname -r
-# Should show something like: 6.1.21-v8+
-
-# Check if TrustZone/OP-TEE is available (optional)
-ls -la /dev/tee* 2>/dev/null && echo "OP-TEE available" || echo "No OP-TEE"
-dmesg | grep -i "optee\|trustzone"
+ssh pi@raspberrypi.local
+git clone https://github.com/smit4351/ece595_testing.git
+cd ece595_testing
 ```
 
-### Step 2: Build Kernel Modules on macOS
+### Option B: Copy from Your macOS Machine
 
 ```bash
-# On your macOS machine, in project directory:
-cd ~/Downloads/ece595_testing
-
-# Build modules in container
-./scripts/run_in_container.sh build-modules
-
-# Verify build succeeded
-ls -lh kernel_modules/*.ko
-# Should show:
-#   dma_attack.ko  (~374K)
-#   smc_fuzzer.ko  (~331K)
+scp -r ~/Downloads/ece595_testing pi@raspberrypi.local:~/
+ssh pi@raspberrypi.local
+cd ~/ece595_testing
 ```
 
-### Step 3: Transfer Modules to Raspberry Pi
+---
+
+## Step 2: Build the Attack Modules
+
+Just run the build script—it handles everything:
 
 ```bash
-# Option A: Using SCP
-scp kernel_modules/*.ko pi@raspberrypi.local:~/
-
-# Option B: Using rsync (preserves permissions)
-rsync -avz kernel_modules/*.ko pi@raspberrypi.local:~/modules/
-
-# Option C: If you know the Pi's IP address
-scp kernel_modules/*.ko pi@192.168.1.100:~/
+bash BUILD_ON_PI.sh
 ```
 
-### Step 4: Load and Test Modules
+This will:
+1. Install `build-essential` (compiler and tools)
+2. Install `linux-headers` matching your kernel version
+3. Compile all 4 attack modules (`.ko` files)
+4. Show you the compiled files
 
-On the Raspberry Pi:
+The script is safe to run multiple times. It cleans up before rebuilding.
+
+**On a Pi with 2GB RAM, this takes 5-10 minutes. On 4GB+ it's usually done in 2-3 minutes.**
+
+### Troubleshooting the Build
+
+**Error: "linux-headers not found"**
+```bash
+# Your kernel version might not have pre-built headers. Try:
+sudo apt install -y linux-headers-generic
+```
+
+**Error: "out of memory"**
+- Your Pi ran out of RAM. This usually happens on 512MB-1GB Pis.
+- Try closing other applications and running again.
+- Or add swap: `sudo dphys-swapfile swapon`
+
+**Error: "permission denied"**
+- The script needs `sudo` to install tools. Run it with `sudo bash BUILD_ON_PI.sh`
+
+---
+
+## Step 3: First-Time Setup
+
+After building, do this once to set up the automation suite:
+
+```bash
+cd ~/ece595_testing/pi_attack_runner
+sudo bash partner_setup.sh
+```
+
+This creates the results directory and configures the runners. You only need to do this once.
 
 ```bash
 # Navigate to module directory

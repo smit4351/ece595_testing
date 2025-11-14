@@ -1,93 +1,82 @@
 # Raspberry Pi 4 TrustZone Attack Framework
 
-**For Partner: Raspberry Pi Deployment**
+This repo contains everything you need to run TrustZone security testing on a Raspberry Pi 4. Just copy, build, and execute—all four attack modules are ready to go.
 
-## What This Does
+## What's Included
 
-Automated TrustZone attack testing on Raspberry Pi 4 with OP-TEE. Four attack modules ready to run.
+Four attack modules that test different TrustZone weaknesses:
 
-## Files You Need
+- **DMA Attack** — Uses hardware DMA controllers to read/write Secure World memory
+- **SMC Fuzzer** — Sends malformed SMC calls to find bugs in the Secure Monitor
+- **Cache Timing** — Exploits cache side-channels to leak Secure World behavior
+- **Peripheral Isolation Test** — Checks which peripherals can bypass TrustZone isolation
 
-```
-ece595_testing/
-├── BUILD_ON_PI.sh              ← Run this first on Pi
-├── kernel_modules/             ← Attack source code
-│   ├── dma_attack.c           (DMA memory access)
-│   ├── smc_fuzzer.c           (SMC fuzzing)
-│   ├── cache_timing_attack.c  (Side-channel)
-│   ├── peripheral_isolation_test.c (Peripheral testing)
-│   ├── attack_template.c      (Template for new attacks)
-│   └── Makefile
-└── pi_attack_runner/           ← Automation scripts
-    ├── run_attacks.sh          (Main runner)
-    ├── execute_attack.sh       (Single attack)
-    ├── collect_results.sh      (Gather results)
-    ├── partner_setup.sh        (First-time setup)
-    ├── config.sh               (Configuration)
-    └── quick_test.sh           (Test setup)
-```
+Plus a complete automation suite to build, deploy, and run everything.
 
-## Setup (One Time)
+## Quick Start
+
+### First Time Setup (on your Pi)
 
 ```bash
-# 1. Copy this entire directory to Pi
-scp -r ece595_testing/ pi@raspberrypi.local:~/
+# 1. Get the code onto your Pi
+git clone https://github.com/smit4351/ece595_testing.git
+cd ece595_testing
 
-# 2. SSH to Pi
-ssh pi@raspberrypi.local
-
-# 3. Build kernel modules
-cd ~/ece595_testing
+# 2. Build all the attack modules
 bash BUILD_ON_PI.sh
 
-# 4. Setup automation
-cd ~/ece595_testing/pi_attack_runner
+# 3. One-time setup
+cd pi_attack_runner
 sudo bash partner_setup.sh
 ```
 
-## Running Attacks
+### Running Attacks
 
 ```bash
-# Run all attacks
+# Run everything at once
 cd ~/ece595_testing/pi_attack_runner
 sudo bash run_attacks.sh --local ~/ece595_testing/kernel_modules
 
-# Or run individually
+# Or pick specific attacks
 sudo bash execute_attack.sh --module dma_attack
 sudo bash execute_attack.sh --module smc_fuzzer
 sudo bash execute_attack.sh --module cache_timing_attack
 sudo bash execute_attack.sh --module peripheral_isolation_test
+```
 
-# Collect results
+### Getting Results
+
+```bash
 sudo bash collect_results.sh --output ~/attack_results
 ```
 
-## Results
+Results include kernel logs, crash dumps, and a summary report.
 
-Outputs go to `/tmp/attack_results/` by default:
-- Kernel logs (dmesg)
-- Attack output
-- Crash reports
-- Summary
+## Files You'll Use
 
-## Documentation
-
-- `RASPBERRY_PI_DEPLOYMENT.md` - Full deployment guide
-- `ATTACK_SUMMARY.md` - Attack descriptions and research alignment
-- `pi_attack_runner/PARTNER_GUIDE.md` - Detailed partner instructions
-
-## Requirements
-
-- Raspberry Pi 4 (4GB RAM)
-- OP-TEE 3.20.0 installed
-- Internet (first time only)
-- SSH access
-
-## Quick Test
-
-```bash
-cd ~/ece595_testing/pi_attack_runner
-sudo bash quick_test.sh
+```
+├── BUILD_ON_PI.sh              # Run this first
+├── kernel_modules/
+│   ├── dma_attack.c
+│   ├── smc_fuzzer.c
+│   ├── cache_timing_attack.c
+│   └── peripheral_isolation_test.c
+└── pi_attack_runner/
+    ├── run_attacks.sh          # Main orchestrator
+    ├── execute_attack.sh       # Single attack
+    ├── collect_results.sh      # Gather results
+    └── config.sh               # Customize behavior
 ```
 
-Should show: ✓ OP-TEE detected, ✓ Modules built, ✓ Ready to run
+## What You Need
+
+- Raspberry Pi 4 with at least 4GB RAM
+- OP-TEE 3.20.0 (or compatible version)
+- Internet connection (first time only, to install build tools)
+- SSH access to the Pi
+
+## Need Help?
+
+- `RASPBERRY_PI_DEPLOYMENT.md` — detailed setup instructions
+- `pi_attack_runner/PARTNER_GUIDE.md` — running attacks step-by-step
+- `ATTACK_SUMMARY.md` — what each attack does and how it works
