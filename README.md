@@ -74,9 +74,3 @@ Results include kernel logs, crash dumps, and a summary report.
 - OP-TEE 3.20.0 (or compatible version)
 - Internet connection (first time only, to install build tools)
 - SSH access to the Pi
-
-## Need Help?
-
-- `RASPBERRY_PI_DEPLOYMENT.md` — detailed setup instructions
-- `pi_attack_runner/PARTNER_GUIDE.md` — running attacks step-by-step
-- `ATTACK_SUMMARY.md` — what each attack does and how it works
